@@ -1,17 +1,34 @@
 /**
  * YouTube Downloader Pro - Modern Frontend Application
  * Handles URL fetching, format selection, TV mode toggling,
- * WebSocket live progress tracking, TV conversion, typo recovery, and media playback.
+ * WebSocket live progress tracking, TV conversion, typo recovery, media playback,
+ * and dual platform support (YouTube & Instagram).
  */
 
 // State
+let currentPlatform = 'youtube'; // 'youtube' or 'instagram'
 let currentVideoData = null;
 let selectedFormatType = 'video'; // 'video' or 'audio'
 let selectedQuality = '1080';
 let activeJobId = null;
 let activeSocket = null;
 
-// DOM Elements
+// DOM Elements - Navigation & Platform Switcher
+const btnNavYouTube = document.getElementById('btnNavYouTube');
+const btnNavInstagram = document.getElementById('btnNavInstagram');
+const btnNavTikTok = document.getElementById('btnNavTikTok');
+const brandSubtitle = document.getElementById('brandSubtitle');
+const brandLogoBox = document.getElementById('brandLogoBox');
+const brandLogoSvg = document.getElementById('brandLogoSvg');
+
+// DOM Elements - Hero
+const heroBadgeText = document.getElementById('heroBadgeText');
+const heroBadgeIcon = document.getElementById('heroBadgeIcon');
+const heroTitle = document.getElementById('heroTitle');
+const heroDesc = document.getElementById('heroDesc');
+const btnFetchText = document.getElementById('btnFetchText');
+
+// DOM Elements - URL Input
 const inputUrl = document.getElementById('inputUrl');
 const btnPaste = document.getElementById('btnPaste');
 const btnFetch = document.getElementById('btnFetch');
@@ -64,6 +81,130 @@ const toastContainer = document.getElementById('toastContainer');
 
 let lastFinishedFilename = null;
 
+const YT_SVG_PATH = `<path d="M19.615 3.184c-3.604-.246-11.631-.245-15.23 0-3.897.266-4.356 2.62-4.385 8.816.029 6.185.484 8.549 4.385 8.816 3.6.245 11.626.246 15.23 0 3.897-.266 4.356-2.62 4.385-8.816-.029-6.185-.484-8.549-4.385-8.816zm-10.615 12.816v-8l8 3.993-8 4.007z"/>`;
+const IG_SVG_PATH = `<path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zm0 5.838c-3.403 0-6.162 2.759-6.162 6.162s2.759 6.163 6.162 6.163 6.162-2.759 6.162-6.163c0-3.403-2.759-6.162-6.162-6.162zm0 10.162c-2.209 0-4-1.79-4-4 0-2.209 1.791-4 4-4s4 1.791 4 4c0 2.21-1.791 4-4 4zm6.406-11.845c-.796 0-1.441.645-1.441 1.44s.645 1.44 1.441 1.44c.795 0 1.439-.645 1.439-1.44s-.644-1.44-1.439-1.44z"/>`;
+const TT_SVG_PATH = `<path d="M12.525.02c1.31-.02 2.61-.01 3.91-.02.08 1.53.63 3.09 1.75 4.17 1.12 1.11 2.7 1.62 4.24 1.79v4.03c-1.44-.05-2.89-.35-4.2-.97-.57-.26-1.1-.59-1.62-.97v7.94c.03 2.58-1.12 5.14-3.08 6.82-2.02 1.75-4.88 2.37-7.46 1.66-2.58-.7-4.7-2.68-5.6-5.18-.89-2.5-.47-5.38 1.1-7.48 1.59-2.12 4.24-3.27 6.88-2.97.02 1.39.01 2.78.01 4.17-1.39-.18-2.84.24-3.83 1.22-.98.98-1.28 2.47-.78 3.77.5 1.3 1.73 2.19 3.12 2.25 1.39.06 2.72-.73 3.32-1.99.35-.74.45-1.57.44-2.39V.02h-3.04z"/>`;
+
+// -----------------------------------------------------------------------------
+// Platform Switcher Handler
+// -----------------------------------------------------------------------------
+function setPlatform(platform, fromUserClick = false) {
+    currentPlatform = platform;
+
+    // Reset all tabs
+    [btnNavYouTube, btnNavInstagram, btnNavTikTok].forEach(btn => {
+        if (btn) {
+            btn.classList.remove('active');
+            btn.setAttribute('aria-selected', 'false');
+        }
+    });
+
+    document.body.classList.remove('theme-instagram', 'theme-tiktok');
+
+    if (platform === 'tiktok') {
+        if (btnNavTikTok) {
+            btnNavTikTok.classList.add('active');
+            btnNavTikTok.setAttribute('aria-selected', 'true');
+        }
+        document.body.classList.add('theme-tiktok');
+        if (brandLogoSvg) brandLogoSvg.innerHTML = TT_SVG_PATH;
+        if (brandSubtitle) brandSubtitle.textContent = 'TikTok Video & Sound Downloader • Bebas Watermark HD';
+
+        if (heroBadgeIcon) heroBadgeIcon.textContent = '🎵';
+        if (heroBadgeText) heroBadgeText.textContent = 'Download Video TikTok Bebas Watermark + Audio MP3 Jernih';
+        if (heroTitle) heroTitle.innerHTML = 'Download TikTok <span class="gradient-text" id="heroGradientText">Tanpa Watermark</span> Kualitas HD';
+        if (heroDesc) heroDesc.innerHTML = 'Download video TikTok bersih tanpa watermark logo mengganggu! Dilengkapi opsi unduh audio/sound TikTok terpisah dalam format MP3 berkualitas tinggi.';
+
+        if (!inputUrl.value.trim() || inputUrl.placeholder.includes('youtube') || inputUrl.placeholder.includes('instagram')) {
+            inputUrl.placeholder = 'Tempel link TikTok di sini (contoh: https://www.tiktok.com/@.../video/... atau https://vt.tiktok.com/...)';
+        }
+
+        if (fromUserClick) {
+            showToast('Mode TikTok Aktif: Siap unduh video tanpa watermark & audio MP3.', 'info');
+        }
+    } else if (platform === 'instagram') {
+        if (btnNavInstagram) {
+            btnNavInstagram.classList.add('active');
+            btnNavInstagram.setAttribute('aria-selected', 'true');
+        }
+        document.body.classList.add('theme-instagram');
+        if (brandLogoSvg) brandLogoSvg.innerHTML = IG_SVG_PATH;
+        if (brandSubtitle) brandSubtitle.textContent = 'Instagram Reels & Video Downloader • HD MP4';
+
+        if (heroBadgeIcon) heroBadgeIcon.textContent = '📸';
+        if (heroBadgeText) heroBadgeText.textContent = 'Download Reels, Video, & Audio Instagram Bebas Watermark HD';
+        if (heroTitle) heroTitle.innerHTML = 'Download Instagram <span class="gradient-text" id="heroGradientText">Reels & Video</span> Cepat';
+        if (heroDesc) heroDesc.innerHTML = 'Download Reels, Video, dan Postingan Instagram dengan kualitas gambar dan suara terbaik (MP4 HD). Otomatis siap diputar di semua perangkat, TV, HP, dan disimpan ke galeri tanpa watermark.';
+
+        if (!inputUrl.value.trim() || inputUrl.placeholder.includes('youtube') || inputUrl.placeholder.includes('tiktok')) {
+            inputUrl.placeholder = 'Tempel link Instagram di sini (contoh: https://www.instagram.com/reel/...)';
+        }
+
+        if (fromUserClick) {
+            showToast('Mode Instagram Aktif: Siap unduh Reels, Video Feed & Postingan HD.', 'info');
+        }
+    } else {
+        // YouTube mode
+        if (btnNavYouTube) {
+            btnNavYouTube.classList.add('active');
+            btnNavYouTube.setAttribute('aria-selected', 'true');
+        }
+        if (brandLogoSvg) brandLogoSvg.innerHTML = YT_SVG_PATH;
+        if (brandSubtitle) brandSubtitle.textContent = 'YouTube, Instagram & TikTok • Full HD + Audio Muxing';
+
+        if (heroBadgeIcon) heroBadgeIcon.textContent = '📺';
+        if (heroBadgeText) heroBadgeText.textContent = 'Solusi Video 1080p, 2K & 4K + Audio Utuh + Kompatibel Smart TV';
+        if (heroTitle) heroTitle.innerHTML = 'Download YouTube <span class="gradient-text" id="heroGradientText">Resolusi Tinggi</span> + Suara Utuh';
+        if (heroDesc) heroDesc.innerHTML = 'Download video tanpa audio bisu! YouTube Downloader Pro otomatis menggabungkan stream video dan audio dengan <strong>FFmpeg</strong>, serta dilengkapi <strong>Mode Kompatibel TV (H.264 + AAC)</strong> agar pasti bisa diputar di Smart TV, Android TV, dan USB flashdisk.';
+
+        if (!inputUrl.value.trim() || inputUrl.placeholder.includes('instagram') || inputUrl.placeholder.includes('tiktok')) {
+            inputUrl.placeholder = 'Tempel URL YouTube di sini (contoh: https://www.youtube.com/watch?v=...)';
+        }
+
+        if (fromUserClick) {
+            showToast('Mode YouTube Aktif: Siap unduh video, shorts & audio 1080p/4K.', 'info');
+        }
+    }
+}
+
+function detectAndSwitchPlatform(url) {
+    if (!url) return;
+    const lower = url.toLowerCase();
+    if (lower.includes('tiktok.com') && currentPlatform !== 'tiktok') {
+        setPlatform('tiktok');
+        showToast('Link TikTok terdeteksi — otomatis beralih ke Mode TikTok!', 'info');
+    } else if ((lower.includes('instagram.com') || lower.includes('instagr.am')) && currentPlatform !== 'instagram') {
+        setPlatform('instagram');
+        showToast('Link Instagram terdeteksi — otomatis beralih ke Mode Instagram!', 'info');
+    } else if ((lower.includes('youtube.com') || lower.includes('youtu.be')) && currentPlatform !== 'youtube') {
+        setPlatform('youtube');
+        showToast('Link YouTube terdeteksi — otomatis beralih ke Mode YouTube!', 'info');
+    }
+}
+
+// -----------------------------------------------------------------------------
+// Session & Auto-Download Helpers
+// -----------------------------------------------------------------------------
+function getSessionId() {
+    let sid = localStorage.getItem('yt_pro_session_id');
+    if (!sid) {
+        sid = 'sess_' + Math.random().toString(36).substring(2, 9) + Date.now().toString(36);
+        localStorage.setItem('yt_pro_session_id', sid);
+    }
+    return sid;
+}
+
+function triggerAutoDownload(filename, sessionId) {
+    if (!filename) return;
+    const downloadUrl = `/api/file/${encodeURIComponent(filename)}?session_id=${encodeURIComponent(sessionId || getSessionId())}`;
+    const a = document.createElement('a');
+    a.href = downloadUrl;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    setTimeout(() => a.remove(), 150);
+}
+
 // -----------------------------------------------------------------------------
 // Toast Notifications
 // -----------------------------------------------------------------------------
@@ -86,12 +227,29 @@ function showToast(message, type = 'info') {
 document.addEventListener('DOMContentLoaded', () => {
     loadHistory();
 
+    // Platform switcher menu clicks
+    if (btnNavYouTube) {
+        btnNavYouTube.addEventListener('click', () => setPlatform('youtube', true));
+    }
+    if (btnNavInstagram) {
+        btnNavInstagram.addEventListener('click', () => setPlatform('instagram', true));
+    }
+    if (btnNavTikTok) {
+        btnNavTikTok.addEventListener('click', () => setPlatform('tiktok', true));
+    }
+
+    // Auto-detect platform on typing / paste
+    inputUrl.addEventListener('input', () => {
+        detectAndSwitchPlatform(inputUrl.value.trim());
+    });
+
     // Paste from Clipboard
     btnPaste.addEventListener('click', async () => {
         try {
             const text = await navigator.clipboard.readText();
             if (text) {
                 inputUrl.value = text.trim();
+                detectAndSwitchPlatform(text.trim());
                 showToast('URL berhasil ditempel dari clipboard!', 'success');
                 fetchVideoInfo();
             }
@@ -125,15 +283,20 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Open Folder Triggers
     const openFolderHandler = async () => {
-        try {
-            const res = await fetch('/api/open-folder', { method: 'POST' });
-            if (res.ok) {
-                showToast('Folder downloads berhasil dibuka di komputer!', 'success');
-            } else {
-                showToast('Gagal membuka folder di file manager.', 'error');
+        const isLocalHost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+        if (isLocalHost) {
+            try {
+                const res = await fetch('/api/open-folder', { method: 'POST' });
+                if (res.ok) {
+                    showToast('Folder downloads berhasil dibuka di komputer!', 'success');
+                } else {
+                    showToast('File otomatis tersimpan di folder Downloads browser Anda.', 'info');
+                }
+            } catch (e) {
+                showToast('File otomatis tersimpan di folder Downloads browser Anda.', 'info');
             }
-        } catch (e) {
-            showToast('Tidak dapat menghubungi server lokal.', 'error');
+        } else {
+            showToast('File otomatis tersimpan di folder Downloads laptop/perangkat Anda.', 'info');
         }
     };
     btnOpenFolderNav.addEventListener('click', openFolderHandler);
@@ -165,9 +328,15 @@ document.addEventListener('DOMContentLoaded', () => {
 async function fetchVideoInfo() {
     const url = inputUrl.value.trim();
     if (!url) {
-        showError('Silakan masukkan link video YouTube terlebih dahulu.');
+        let msg = 'Silakan masukkan link video YouTube terlebih dahulu.';
+        if (currentPlatform === 'tiktok') msg = 'Silakan masukkan link Video TikTok terlebih dahulu.';
+        else if (currentPlatform === 'instagram') msg = 'Silakan masukkan link Reels atau Video Instagram terlebih dahulu.';
+        showError(msg);
         return;
     }
+
+    // Auto switch tab if user pasted cross-platform link
+    detectAndSwitchPlatform(url);
 
     hideError();
     setFetchLoading(true);
@@ -187,6 +356,10 @@ async function fetchVideoInfo() {
         const data = await response.json();
         currentVideoData = data;
 
+        if (data.platform) {
+            setPlatform(data.platform);
+        }
+
         // If backend auto-corrected a typo in the URL
         if (data.correction_note) {
             if (data.webpage_url) {
@@ -196,14 +369,21 @@ async function fetchVideoInfo() {
         }
 
         renderVideoCard(data);
-        showToast('Detail video berhasil ditemukan!', 'success');
+        const platformName = data.platform === 'tiktok' ? 'TikTok' : (data.platform === 'instagram' ? 'Instagram' : 'video');
+        showToast(`Detail ${platformName} berhasil ditemukan!`, 'success');
 
         // Scroll smoothly to video details
         videoCard.scrollIntoView({ behavior: 'smooth', block: 'start' });
     } catch (err) {
-        let errMsg = err.message || 'Terjadi kesalahan saat memeriksa URL YouTube.';
+        let errMsg = err.message || (currentPlatform === 'tiktok' ? 'Terjadi kesalahan saat memeriksa URL TikTok.' : (currentPlatform === 'instagram' ? 'Terjadi kesalahan saat memeriksa URL Instagram.' : 'Terjadi kesalahan saat memeriksa URL YouTube.'));
         if (errMsg.includes('This video is not available') || errMsg.includes('This video is unavailable')) {
-            errMsg = `Video tidak ditemukan di YouTube. Pastikan link video benar, video tidak disetel privat, dan tidak ada kesalahan ketik pada link.`;
+            if (currentPlatform === 'tiktok') {
+                errMsg = 'Video TikTok tidak ditemukan atau telah dihapus/disetel privat.';
+            } else if (currentPlatform === 'instagram') {
+                errMsg = 'Konten Instagram tidak ditemukan atau disetel privat. Pastikan link publik dan akun tidak dikunci.';
+            } else {
+                errMsg = 'Video tidak ditemukan di YouTube. Pastikan link video benar, video tidak disetel privat, dan tidak ada kesalahan ketik pada link.';
+            }
         }
         showError(errMsg);
     } finally {
@@ -241,9 +421,16 @@ function hideError() {
 function renderVideoCard(data) {
     videoThumb.src = data.thumbnail || '';
     videoDuration.textContent = data.duration_formatted || '00:00';
-    videoTitle.textContent = data.title || 'YouTube Video';
-    videoChannel.textContent = data.channel || 'Channel';
-    videoViews.textContent = Number(data.view_count || 0).toLocaleString('id-ID') + ' views';
+    videoTitle.textContent = data.title || (data.platform === 'tiktok' ? 'TikTok Video' : (data.platform === 'instagram' ? 'Instagram Media' : 'YouTube Video'));
+    videoChannel.textContent = data.channel || (data.platform === 'tiktok' ? '@tiktok' : (data.platform === 'instagram' ? '@instagram' : 'Channel'));
+
+    if (data.view_count && Number(data.view_count) > 0) {
+        videoViews.textContent = Number(data.view_count).toLocaleString('id-ID') + ' views';
+        videoViews.style.display = 'inline';
+    } else {
+        videoViews.textContent = data.platform === 'tiktok' ? 'TikTok Video' : (data.platform === 'instagram' ? 'Instagram Media' : '0 views');
+        videoViews.style.display = 'inline';
+    }
 
     renderVideoOptions(data.video_formats);
     renderAudioOptions(data.audio_formats);
@@ -419,7 +606,8 @@ async function startDownload() {
                 url,
                 format_type: selectedFormatType,
                 quality: selectedQuality,
-                tv_mode: isTv
+                tv_mode: isTv,
+                session_id: getSessionId()
             })
         });
 
@@ -552,14 +740,37 @@ function handleProgressUpdate(data) {
         progressBarFill.style.width = '100%';
 
         lastFinishedFilename = data.filename;
+        const currentSession = data.session_id || getSessionId();
         if (data.filename) {
-            btnBrowserDownload.href = `/api/file/${encodeURIComponent(data.filename)}`;
+            const dlUrl = `/api/file/${encodeURIComponent(data.filename)}?session_id=${encodeURIComponent(currentSession)}`;
+            btnBrowserDownload.href = dlUrl;
             btnBrowserDownload.download = data.filename;
+
+            // 1. Auto-download directly to user's computer/device
+            triggerAutoDownload(data.filename, currentSession);
+
+            // 2. Save to user's private localStorage history
+            saveLocalHistoryItem({
+                id: data.job_id || Date.now().toString(),
+                filename: data.filename,
+                title: data.title || currentVideoData?.title || data.filename,
+                platform: data.platform || currentVideoData?.platform || currentPlatform,
+                size: data.total || data.downloaded || '—',
+                ext: data.filename.split('.').pop() || 'mp4',
+                is_video: selectedFormatType === 'video',
+                tv_mode: data.tv_mode,
+                session_id: currentSession,
+                date: new Date().toLocaleDateString('id-ID', {
+                    day: 'numeric', month: 'short', year: 'numeric',
+                    hour: '2-digit', minute: '2-digit'
+                }),
+                timestamp: Date.now()
+            });
         }
 
         successMessageText.textContent = data.tv_mode
-            ? 'Unduhan selesai! Format H.264 dan Audio AAC termuxing rapi siap diputar di TV.'
-            : 'Unduhan selesai dengan resolusi penuh dan audio utuh!';
+            ? 'Unduhan selesai & langsung tersimpan di komputer! Format H.264 + AAC siap diputar di TV.'
+            : 'Unduhan selesai & langsung tersimpan di komputer dengan resolusi penuh!';
 
         progressSuccessActions.classList.remove('hidden');
 
@@ -571,8 +782,7 @@ function handleProgressUpdate(data) {
             <span>Download Lagi</span>
         `;
 
-        showToast('Video berhasil diunduh & digabungkan sempurna!', 'success');
-        loadHistory();
+        showToast('Video berhasil diunduh ke komputer Anda!', 'success');
     } else if (data.status === 'error') {
         progressStatusPill.className = 'progress-status-pill';
         progressStatusPill.style.backgroundColor = 'rgba(239, 68, 68, 0.4)';
@@ -602,7 +812,7 @@ async function convertFileToTv(filename) {
         const res = await fetch('/api/convert-tv', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ filename })
+            body: JSON.stringify({ filename, session_id: getSessionId() })
         });
 
         if (!res.ok) {
@@ -625,129 +835,167 @@ async function convertFileToTv(filename) {
 }
 
 // -----------------------------------------------------------------------------
-// Download History
+// Download History (Private & LocalStorage Powered)
 // -----------------------------------------------------------------------------
-async function loadHistory() {
+const LOCAL_STORAGE_HISTORY_KEY = 'yt_pro_user_history';
+
+function getLocalHistory() {
     try {
-        const response = await fetch('/api/history');
-        if (!response.ok) return;
+        const raw = localStorage.getItem(LOCAL_STORAGE_HISTORY_KEY);
+        return raw ? JSON.parse(raw) : [];
+    } catch (e) {
+        return [];
+    }
+}
 
-        const data = await response.json();
-        const files = data.files || [];
+function saveLocalHistoryItem(item) {
+    let list = getLocalHistory();
+    list = list.filter(x => x.filename !== item.filename);
+    list.unshift(item);
+    if (list.length > 50) list = list.slice(0, 50);
+    try {
+        localStorage.setItem(LOCAL_STORAGE_HISTORY_KEY, JSON.stringify(list));
+    } catch (e) {}
+    renderLocalHistory();
+}
 
-        historyList.innerHTML = '';
+function removeLocalHistoryItem(filename, sessionId) {
+    let list = getLocalHistory();
+    list = list.filter(x => x.filename !== filename);
+    try {
+        localStorage.setItem(LOCAL_STORAGE_HISTORY_KEY, JSON.stringify(list));
+    } catch (e) {}
 
-        if (files.length === 0) {
-            historyList.appendChild(emptyHistory);
-            emptyHistory.classList.remove('hidden');
-            return;
+    // Clean up from server if still exists in temporary buffer
+    fetch(`/api/file/${encodeURIComponent(filename)}?session_id=${encodeURIComponent(sessionId || '')}`, {
+        method: 'DELETE'
+    }).catch(() => {});
+
+    renderLocalHistory();
+    showToast('Item berhasil dihapus dari riwayat pribadi.', 'info');
+}
+
+function loadHistory() {
+    renderLocalHistory();
+}
+
+function renderLocalHistory() {
+    const files = getLocalHistory();
+    historyList.innerHTML = '';
+
+    if (files.length === 0) {
+        historyList.appendChild(emptyHistory);
+        emptyHistory.classList.remove('hidden');
+        return;
+    }
+
+    emptyHistory.classList.add('hidden');
+
+    files.forEach((file) => {
+        const item = document.createElement('div');
+        item.className = 'history-card';
+
+        const isVid = file.is_video !== false;
+        const iconClass = isVid ? 'icon-video' : 'icon-audio';
+        const iconText = (file.ext || (isVid ? 'MP4' : 'MP3')).toUpperCase();
+
+        let tvBadgeHtml = '';
+        let convertBtnHtml = '';
+
+        if (isVid) {
+            if (file.tv_mode) {
+                tvBadgeHtml = '<span class="badge-codec badge-tv-ready">✓ TV Ready (H.264 + AAC)</span>';
+            } else {
+                tvBadgeHtml = '<span class="badge-codec badge-tv-not-ready">Standar (Resolusi Penuh)</span>';
+                convertBtnHtml = `
+                    <button class="btn btn-convert-tv" title="Konversi video ke H.264 + AAC agar pasti bisa diputar di TV">
+                        <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2">
+                            <rect x="2" y="7" width="20" height="15" rx="2" ry="2"/>
+                            <polyline points="17 2 12 7 7 2"/>
+                        </svg>
+                        <span>Konversi TV</span>
+                    </button>
+                `;
+            }
         }
 
-        emptyHistory.classList.add('hidden');
+        let platformBadgeHtml = '';
+        if (file.platform === 'tiktok' || (file.filename && file.filename.toLowerCase().includes('tiktok'))) {
+            platformBadgeHtml = '<span class="badge-platform badge-platform-tiktok">TikTok</span>';
+        } else if (file.platform === 'instagram' || (file.filename && (file.filename.includes('Instagram') || file.filename.toLowerCase().includes('reel')))) {
+            platformBadgeHtml = '<span class="badge-platform badge-platform-instagram">Instagram</span>';
+        } else {
+            platformBadgeHtml = '<span class="badge-platform badge-platform-youtube">YouTube</span>';
+        }
 
-        files.forEach((file) => {
-            const item = document.createElement('div');
-            item.className = 'history-card';
+        const dlUrl = `/api/file/${encodeURIComponent(file.filename)}?session_id=${encodeURIComponent(file.session_id || '')}`;
 
-            const isVid = file.is_video;
-            const iconClass = isVid ? 'icon-video' : 'icon-audio';
-            const iconText = file.ext.toUpperCase();
-
-            let tvBadgeHtml = '';
-            let convertBtnHtml = '';
-
-            if (isVid) {
-                if (file.tv_ready) {
-                    tvBadgeHtml = '<span class="badge-codec badge-tv-ready">✓ TV Ready (H.264 + AAC)</span>';
-                } else {
-                    const codecInfo = file.vcodec ? file.vcodec.toUpperCase() : 'NON-H264';
-                    tvBadgeHtml = `<span class="badge-codec badge-tv-not-ready">⚠ ${codecInfo} (Bisa bermasalah di TV)</span>`;
-                    convertBtnHtml = `
-                        <button class="btn btn-convert-tv" title="Konversi video ke H.264 + AAC agar pasti bisa diputar di TV">
-                            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2">
-                                <rect x="2" y="7" width="20" height="15" rx="2" ry="2"/>
-                                <polyline points="17 2 12 7 7 2"/>
-                            </svg>
-                            <span>Konversi TV</span>
-                        </button>
-                    `;
-                }
-            }
-
-            item.innerHTML = `
-                <div class="history-left">
-                    <div class="file-type-icon ${iconClass}">${iconText}</div>
-                    <div class="history-meta">
-                        <div class="history-file-name" title="${file.filename}">${file.filename}</div>
-                        <div class="history-sub-meta">
-                            <span>${file.size}</span>
-                            <span>•</span>
-                            <span>${file.modified}</span>
-                            ${tvBadgeHtml}
-                        </div>
+        item.innerHTML = `
+            <div class="history-left">
+                <div class="file-type-icon ${iconClass}">${iconText}</div>
+                <div class="history-meta">
+                    <div class="history-file-name" title="${file.filename}">${file.title || file.filename}</div>
+                    <div class="history-sub-meta">
+                        ${platformBadgeHtml}
+                        <span>•</span>
+                        <span>${file.size || '—'}</span>
+                        <span>•</span>
+                        <span>${file.date || ''}</span>
+                        ${tvBadgeHtml}
                     </div>
                 </div>
-                <div class="history-actions">
-                    ${convertBtnHtml}
-                    <button class="btn btn-sm btn-outline btn-play" title="Putar di browser">
-                        <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor">
-                            <polygon points="5 3 19 12 5 21 5 3"/>
-                        </svg>
-                        <span>Putar</span>
-                    </button>
-                    <a href="/api/file/${encodeURIComponent(file.filename)}" download class="btn btn-sm btn-outline" title="Simpan ke browser">
-                        <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2">
-                            <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3"/>
-                        </svg>
-                        <span>Unduh</span>
-                    </a>
-                    <button class="btn btn-sm btn-delete" title="Hapus file">
-                        <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2">
-                            <polyline points="3 6 5 6 21 6"/>
-                            <path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"/>
-                        </svg>
-                    </button>
-                </div>
-            `;
+            </div>
+            <div class="history-actions">
+                ${convertBtnHtml}
+                <button class="btn btn-sm btn-outline btn-play" title="Putar di browser">
+                    <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor">
+                        <polygon points="5 3 19 12 5 21 5 3"/>
+                    </svg>
+                    <span>Putar</span>
+                </button>
+                <a href="${dlUrl}" download="${file.filename}" class="btn btn-sm btn-outline" title="Unduh lagi ke komputer">
+                    <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3"/>
+                    </svg>
+                    <span>Unduh</span>
+                </a>
+                <button class="btn btn-sm btn-delete" title="Hapus dari riwayat">
+                    <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2">
+                        <polyline points="3 6 5 6 21 6"/>
+                        <path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"/>
+                    </svg>
+                </button>
+            </div>
+        `;
 
-            item.querySelector('.btn-play').addEventListener('click', () => {
-                openMediaPlayer(file.filename, isVid);
-            });
-
-            const convBtn = item.querySelector('.btn-convert-tv');
-            if (convBtn) {
-                convBtn.addEventListener('click', () => {
-                    convertFileToTv(file.filename);
-                });
-            }
-
-            item.querySelector('.btn-delete').addEventListener('click', async () => {
-                if (confirm(`Hapus file "${file.filename}" dari komputer?`)) {
-                    try {
-                        const res = await fetch(`/api/file/${encodeURIComponent(file.filename)}`, { method: 'DELETE' });
-                        if (res.ok) {
-                            showToast('File berhasil dihapus.', 'info');
-                            loadHistory();
-                        } else {
-                            showToast('Gagal menghapus file.', 'error');
-                        }
-                    } catch (e) {
-                        showToast('Gagal menghubungi server.', 'error');
-                    }
-                }
-            });
-
-            historyList.appendChild(item);
+        item.querySelector('.btn-play').addEventListener('click', () => {
+            openMediaPlayer(file.filename, isVid, file.session_id);
         });
-    } catch (e) {}
+
+        const convBtn = item.querySelector('.btn-convert-tv');
+        if (convBtn) {
+            convBtn.addEventListener('click', () => {
+                convertFileToTv(file.filename, file.session_id);
+            });
+        }
+
+        item.querySelector('.btn-delete').addEventListener('click', () => {
+            if (confirm(`Hapus "${file.filename}" dari riwayat pribadi Anda?`)) {
+                removeLocalHistoryItem(file.filename, file.session_id);
+            }
+        });
+
+        historyList.appendChild(item);
+    });
 }
 
 // -----------------------------------------------------------------------------
 // Media Player Modal
 // -----------------------------------------------------------------------------
-function openMediaPlayer(filename, isVideo = true) {
+function openMediaPlayer(filename, isVideo = true, sessionId = null) {
     modalTitle.textContent = filename;
-    const streamUrl = `/api/stream/${encodeURIComponent(filename)}`;
+    const sid = sessionId || getSessionId();
+    const streamUrl = `/api/stream/${encodeURIComponent(filename)}?session_id=${encodeURIComponent(sid)}`;
 
     if (isVideo) {
         modalVideoPlayer.src = streamUrl;

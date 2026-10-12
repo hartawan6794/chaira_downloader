@@ -28,7 +28,41 @@ NODE_BIN = next((p for p in NODE_PATHS if p and os.path.exists(p) and os.access(
 if NODE_BIN:
     node_dir = os.path.dirname(NODE_BIN)
     if node_dir not in os.environ.get("PATH", ""):
-        os.environ["PATH"] = f"{node_dir}:{os.environ.get('PATH', '')}"
+        os.environ["PATH"] = f"{node_dir}{os.pathsep}{os.environ.get('PATH', '')}"
+
+
+def find_ffmpeg_bin_dir() -> Optional[str]:
+    """Finds ffmpeg installation directory across system PATH, WinGet, and standard locations."""
+    ffmpeg_in_path = shutil.which("ffmpeg")
+    if ffmpeg_in_path:
+        return os.path.dirname(os.path.abspath(ffmpeg_in_path))
+
+    if os.name == "nt":
+        import glob
+        local_app_data = os.environ.get("LOCALAPPDATA", "")
+        candidates = []
+        if local_app_data:
+            # WinGet packages (prioritizes yt-dlp.FFmpeg or Gyan.FFmpeg)
+            candidates.extend(glob.glob(os.path.join(local_app_data, "Microsoft", "WinGet", "Packages", "*ffmpeg*", "**", "ffmpeg.exe"), recursive=True))
+            candidates.extend(glob.glob(os.path.join(local_app_data, "Microsoft", "WinGet", "Links", "ffmpeg.exe")))
+        candidates.extend(glob.glob(r"C:\ffmpeg*\**\ffmpeg.exe", recursive=True))
+        candidates.extend(glob.glob(r"C:\Program Files*\ffmpeg*\**\ffmpeg.exe", recursive=True))
+
+        for c in candidates:
+            if os.path.isfile(c):
+                return os.path.dirname(os.path.abspath(c))
+
+    return None
+
+
+FFMPEG_DIR = find_ffmpeg_bin_dir()
+if FFMPEG_DIR:
+    current_path = os.environ.get("PATH", "")
+    if FFMPEG_DIR not in current_path:
+        os.environ["PATH"] = f"{FFMPEG_DIR}{os.pathsep}{current_path}"
+
+FFMPEG_BIN = os.path.join(FFMPEG_DIR, "ffmpeg.exe") if (FFMPEG_DIR and os.name == "nt") else (os.path.join(FFMPEG_DIR, "ffmpeg") if FFMPEG_DIR else "ffmpeg")
+FFPROBE_BIN = os.path.join(FFMPEG_DIR, "ffprobe.exe") if (FFMPEG_DIR and os.name == "nt") else (os.path.join(FFMPEG_DIR, "ffprobe") if FFMPEG_DIR else "ffprobe")
 
 
 def get_base_ydl_opts() -> Dict[str, Any]:
@@ -41,6 +75,8 @@ def get_base_ydl_opts() -> Dict[str, Any]:
     }
     if NODE_BIN:
         opts["js_runtimes"] = {"node": {"path": NODE_BIN}}
+    if FFMPEG_DIR:
+        opts["ffmpeg_location"] = FFMPEG_DIR
     return opts
 
 
@@ -116,10 +152,13 @@ def extract_with_typo_correction(url: str, opts: Dict[str, Any]) -> Tuple[Dict[s
 def extract_info(url: str) -> Dict[str, Any]:
     """
     Extracts detailed video information and organizes all available resolutions
-    (including 4K/2K, 1080p, 720p, 480p, 360p, 240p, 144p) and audio formats.
+    and audio formats. Supports YouTube, Instagram, and TikTok (without watermark).
     """
     opts = get_base_ydl_opts()
     opts["skip_download"] = True
+
+    is_instagram = "instagram.com" in url.lower() or "instagr.am" in url.lower()
+    is_tiktok = "tiktok.com" in url.lower()
 
     info, correction_note = extract_with_typo_correction(url, opts)
 
@@ -193,7 +232,7 @@ def extract_info(url: str) -> Dict[str, Any]:
                 label = f"{height}p"
                 badge = f"{height}p"
 
-            has_native_h264 = height in native_h264_heights
+            has_native_h264 = height in native_h264_heights or is_instagram or is_tiktok
 
             resolutions_map[height] = {
                 "height": height,
@@ -210,9 +249,27 @@ def extract_info(url: str) -> Dict[str, Any]:
                 "note": "Native H.264 + AAC (Instan untuk TV)" if has_native_h264 else "Auto-convert H.264 jika Mode TV aktif"
             }
 
-    # If the video's highest native resolution is 1080p, add 4K (2160p) and 2K (1440p) Ultra HD options!
+    # If resolutions_map is empty (common for Instagram and TikTok single-format responses)
+    if not resolutions_map:
+        h = info.get("height") or 1080
+        resolutions_map[h] = {
+            "height": h,
+            "label": f"Kualitas Asli ({h}p HD)" if h else "Kualitas Asli (MP4 HD)",
+            "badge": f"{h}p HD" if (h and h >= 720) else "Original HD",
+            "fps": info.get("fps") or 30,
+            "format_id": "best",
+            "filesize": info.get("filesize") or info.get("filesize_approx"),
+            "filesize_formatted": format_bytes(info.get("filesize") or info.get("filesize_approx")),
+            "ext": "mp4",
+            "is_upscale": False,
+            "has_native_h264": True,
+            "tv_compatible_native": True,
+            "note": "Format Asli TikTok Tanpa Watermark (H.264 + AAC)" if is_tiktok else "Format Asli Instagram (H.264 + AAC)"
+        }
+
+    # If the video's highest native resolution is 1080p, add 4K (2160p) and 2K (1440p) Ultra HD options (YouTube only)!
     max_native_height = max(resolutions_map.keys()) if resolutions_map else 0
-    if 1080 <= max_native_height < 2160:
+    if not is_instagram and not is_tiktok and 1080 <= max_native_height < 2160:
         base_1080 = resolutions_map.get(1080)
         base_size = base_1080.get("filesize", 0) if base_1080 else int(3000 * 1000 / 8 * duration)
 
@@ -292,16 +349,36 @@ def extract_info(url: str) -> Dict[str, Any]:
         if sorted_thumbs:
             thumbnail = sorted_thumbs[0].get("url", thumbnail)
 
-    webpage_url = info.get("webpage_url") or f"https://www.youtube.com/watch?v={info.get('id')}"
+    webpage_url = info.get("webpage_url") or url
+
+    # Generate title & channel appropriately for TikTok, Instagram, or YouTube
+    raw_title = info.get("title") or info.get("description") or ""
+    if is_tiktok:
+        platform = "tiktok"
+        title = raw_title[:90].strip() if raw_title else f"TikTok Video ({info.get('id', 'video')})"
+        channel = info.get("uploader") or info.get("creator") or info.get("uploader_id") or "TikTok Creator"
+        if not channel.startswith("@") and channel != "TikTok Creator":
+            channel = f"@{channel}"
+    elif is_instagram:
+        platform = "instagram"
+        title = raw_title[:80].strip() if raw_title else f"Instagram Reel ({info.get('id', 'video')})"
+        channel = info.get("uploader") or info.get("channel") or info.get("uploader_id") or "Instagram User"
+        if not channel.startswith("@") and channel != "Instagram User":
+            channel = f"@{channel}"
+    else:
+        platform = "youtube"
+        title = info.get("title", "YouTube Video")
+        channel = info.get("uploader") or info.get("channel") or "Unknown Channel"
 
     return {
         "id": info.get("id"),
-        "title": info.get("title", "YouTube Video"),
-        "channel": info.get("uploader") or info.get("channel") or "Unknown Channel",
+        "platform": platform,
+        "title": title,
+        "channel": channel,
         "duration": duration,
-        "duration_formatted": format_seconds(duration),
+        "duration_formatted": format_seconds(duration) if duration else "--:--",
         "thumbnail": thumbnail,
-        "view_count": info.get("view_count", 0),
+        "view_count": info.get("view_count", 0) or info.get("like_count", 0),
         "upload_date": info.get("upload_date", ""),
         "description": (info.get("description") or "")[:280],
         "video_formats": sorted_resolutions,
@@ -315,12 +392,15 @@ def extract_info(url: str) -> Dict[str, Any]:
 class DownloadJob:
     """Tracks state and progress of an active download or conversion."""
 
-    def __init__(self, job_id: str, url: str, format_type: str, quality: str, tv_mode: bool = True):
+    def __init__(self, job_id: str, url: str, format_type: str, quality: str, tv_mode: bool = True, session_id: Optional[str] = None):
         self.job_id = job_id
         self.url = url
         self.format_type = format_type  # 'video' or 'audio' or 'convert'
         self.quality = quality          # e.g. '1080', '2160', 'mp3-320'
         self.tv_mode = tv_mode          # True: H.264 (yuv420p) + AAC for universal TV compatibility
+        self.session_id = session_id or ""
+        self.job_dir = os.path.join(DOWNLOADS_DIR, self.session_id) if self.session_id else DOWNLOADS_DIR
+        os.makedirs(self.job_dir, exist_ok=True)
         self.status = "queued"          # queued, downloading, merging, converting, finished, error
         self.progress: float = 0.0
         self.speed: str = "—"
@@ -345,6 +425,7 @@ class DownloadJob:
             "phase": self.phase,
             "title": self.title,
             "filename": self.final_filename,
+            "session_id": self.session_id,
             "tv_mode": self.tv_mode,
             "error": self.error_message
         }
@@ -356,7 +437,7 @@ def run_ffmpeg_with_progress(args: List[str], duration: float,
     Runs ffmpeg with `-progress pipe:1` and reports (seconds_done, speed_x) to on_progress.
     Returns (returncode, stderr_text).
     """
-    cmd = ["ffmpeg", "-y", "-hide_banner", "-loglevel", "error", "-nostats",
+    cmd = [FFMPEG_BIN, "-y", "-hide_banner", "-loglevel", "error", "-nostats",
            "-progress", "pipe:1", *args]
     proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
                             text=True, bufsize=1)
@@ -399,8 +480,8 @@ class DownloadManager:
     def get_job(self, job_id: str) -> Optional[DownloadJob]:
         return self.jobs.get(job_id)
 
-    def start_download(self, job_id: str, url: str, format_type: str, quality: str, tv_mode: bool = True) -> DownloadJob:
-        job = DownloadJob(job_id, url, format_type, quality, tv_mode)
+    def start_download(self, job_id: str, url: str, format_type: str, quality: str, tv_mode: bool = True, session_id: Optional[str] = None) -> DownloadJob:
+        job = DownloadJob(job_id, url, format_type, quality, tv_mode, session_id=session_id)
         with self.lock:
             self.jobs[job_id] = job
 
@@ -408,8 +489,8 @@ class DownloadManager:
         thread.start()
         return job
 
-    def start_tv_conversion(self, job_id: str, input_filename: str) -> DownloadJob:
-        job = DownloadJob(job_id, input_filename, "convert", "h264_aac", True)
+    def start_tv_conversion(self, job_id: str, input_filename: str, session_id: Optional[str] = None) -> DownloadJob:
+        job = DownloadJob(job_id, input_filename, "convert", "h264_aac", True, session_id=session_id)
         job.title = f"Konversi TV: {input_filename}"
         with self.lock:
             self.jobs[job_id] = job
@@ -462,14 +543,18 @@ class DownloadManager:
     def _run_conversion(self, job: DownloadJob, filename: str):
         """Convert any existing video to 100% universal TV-compatible H.264 + AAC."""
         try:
-            input_path = os.path.join(DOWNLOADS_DIR, filename)
+            input_path = os.path.join(job.job_dir, filename)
             if not os.path.exists(input_path):
-                raise FileNotFoundError(f"File {filename} tidak ditemukan.")
+                fallback = os.path.join(DOWNLOADS_DIR, filename)
+                if os.path.exists(fallback):
+                    input_path = fallback
+                else:
+                    raise FileNotFoundError(f"File {filename} tidak ditemukan.")
 
             base_name, _ = os.path.splitext(filename)
             clean_name = base_name.replace(" [TV-Ready]", "")
             out_filename = f"{clean_name} [TV-Ready].mp4"
-            out_path = os.path.join(DOWNLOADS_DIR, out_filename)
+            out_path = os.path.join(job.job_dir, out_filename)
 
             job.total_bytes = os.path.getsize(input_path)
             self._encode_tv(job, input_path, out_path, "Konversi ke H.264 + AAC")
@@ -496,7 +581,7 @@ class DownloadManager:
             job.status = "downloading"
             job.phase = "Mengambil detail video..."
 
-            outtmpl = os.path.join(DOWNLOADS_DIR, "%(title).180s [%(resolution)s].%(ext)s")
+            outtmpl = os.path.join(job.job_dir, "%(title).180s [%(resolution)s].%(ext)s")
 
             # Per-stream byte tracking so video + audio form ONE combined progress bar
             stream_done: Dict[str, int] = {}
@@ -577,7 +662,14 @@ class DownloadManager:
 
                 opts["merge_output_format"] = "mp4"
 
-                if job.tv_mode:
+                is_instagram = "instagram.com" in job.url.lower() or "instagr.am" in job.url.lower()
+                is_tiktok = "tiktok.com" in job.url.lower()
+                if is_instagram or is_tiktok:
+                    opts["format"] = "bestvideo+bestaudio/best"
+                    opts["postprocessor_args"] = {
+                        "merger": ["-c:v", "copy", "-c:a", "aac", "-b:a", "192k", "-movflags", "+faststart"]
+                    }
+                elif job.tv_mode:
                     opts["format"] = (
                         f"bestvideo[vcodec^=avc1][height<={target_height}]+bestaudio[acodec^=mp4a]/"
                         f"bestvideo[vcodec^=avc1][height<={target_height}]+bestaudio/"
@@ -597,7 +689,7 @@ class DownloadManager:
 
             elif job.format_type == "audio":
                 opts["format"] = "bestaudio/best"
-                opts["outtmpl"] = os.path.join(DOWNLOADS_DIR, "%(title).180s.%(ext)s")
+                opts["outtmpl"] = os.path.join(job.job_dir, "%(title).180s.%(ext)s")
 
                 if "m4a" in job.quality:
                     codec, quality = "m4a", "0"
@@ -633,8 +725,8 @@ class DownloadManager:
 
                 if not target_filepath or not os.path.exists(target_filepath):
                     files = [
-                        os.path.join(DOWNLOADS_DIR, f)
-                        for f in os.listdir(DOWNLOADS_DIR)
+                        os.path.join(job.job_dir, f)
+                        for f in os.listdir(job.job_dir)
                         if not f.endswith((".part", ".ytdl"))
                     ]
                     if files:
@@ -678,7 +770,7 @@ class DownloadManager:
     # ffprobe helpers
     # ------------------------------------------------------------------
     def _ffprobe(self, filepath: str, stream_sel: Optional[str], entry: str) -> str:
-        cmd = ["ffprobe", "-v", "error"]
+        cmd = [FFPROBE_BIN, "-v", "error"]
         if stream_sel:
             cmd += ["-select_streams", stream_sel]
         cmd += ["-show_entries", entry, "-of", "default=noprint_wrappers=1:nokey=1", filepath]

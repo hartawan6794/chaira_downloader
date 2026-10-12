@@ -125,7 +125,7 @@ chmod +x start.sh stop.sh
 
 2. **Instal dependensi:**
    ```bash
-   pip install --upgrade pip
+   python -m pip install --upgrade pip
    pip install -r requirements.txt
    ```
 
