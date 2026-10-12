@@ -1,0 +1,309 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>YouTube Downloader Pro - Resolusi Tinggi + Audio TV Ready</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/static/css/style.css">
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%23ef4444'><path d='M19.615 3.184c-3.604-.246-11.631-.245-15.23 0-3.897.266-4.356 2.62-4.385 8.816.029 6.185.484 8.549 4.385 8.816 3.6.245 11.626.246 15.23 0 3.897-.266 4.356-2.62 4.385-8.816-.029-6.185-.484-8.549-4.385-8.816zm-10.615 12.816v-8l8 3.993-8 4.007z'/></svg>">
+</head>
+<body>
+    <!-- Background Ambient Glows -->
+    <div class="ambient-glow glow-1"></div>
+    <div class="ambient-glow glow-2"></div>
+    <div class="ambient-glow glow-3"></div>
+
+    <!-- Top Navigation Bar -->
+    <header class="navbar">
+        <div class="nav-container">
+            <div class="nav-brand">
+                <div class="logo-box">
+                    <svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor">
+                        <path d="M19.615 3.184c-3.604-.246-11.631-.245-15.23 0-3.897.266-4.356 2.62-4.385 8.816.029 6.185.484 8.549 4.385 8.816 3.6.245 11.626.246 15.23 0 3.897-.266 4.356-2.62 4.385-8.816-.029-6.185-.484-8.549-4.385-8.816zm-10.615 12.816v-8l8 3.993-8 4.007z"/>
+                    </svg>
+                </div>
+                <div class="brand-text">
+                    <span class="brand-title">YT Downloader <span class="pro-badge">PRO</span></span>
+                    <span class="brand-subtitle">High-Res + Audio Muxing + TV Ready (H.264/AAC)</span>
+                </div>
+            </div>
+
+            <div class="nav-actions">
+                <div class="status-indicator" title="FFmpeg & yt-dlp siap menggabungkan video dan audio">
+                    <span class="status-dot"></span>
+                    <span class="status-label">FFmpeg Muxer Active</span>
+                </div>
+                <button id="btnOpenFolderNav" class="btn btn-outline" title="Buka folder hasil unduhan di komputer">
+                    <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z"/>
+                    </svg>
+                    <span>Folder Unduhan</span>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Container -->
+    <main class="main-content">
+        <!-- Hero Header -->
+        <section class="hero-section">
+            <div class="hero-badge">
+                <span class="badge-sparkle">📺</span> Solusi Video 1080p, 2K & 4K + Audio Utuh + Kompatibel Smart TV
+            </div>
+            <h1 class="hero-title">
+                Download YouTube <span class="gradient-text">Resolusi Tinggi</span> + Suara Utuh
+            </h1>
+            <p class="hero-desc">
+                Download video tanpa audio bisu! YouTube Downloader Pro otomatis menggabungkan stream video dan audio dengan <strong>FFmpeg</strong>, serta dilengkapi <strong>Mode Kompatibel TV (H.264 + AAC)</strong> agar pasti bisa diputar di Smart TV, Android TV, dan USB flashdisk.
+            </p>
+
+            <!-- URL Input Container -->
+            <div class="search-container">
+                <div class="input-card">
+                    <div class="input-icon">
+                        <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M10 13a5 5 0 007.54.54l3-3a5 5 0 00-7.07-7.07l-1.72 1.71"/>
+                            <path d="M14 11a5 5 0 00-7.54-.54l-3 3a5 5 0 007.07 7.07l1.71-1.71"/>
+                        </svg>
+                    </div>
+                    <input type="text" id="inputUrl" placeholder="Tempel URL YouTube di sini (contoh: https://www.youtube.com/watch?v=...)" autocomplete="off">
+                    
+                    <button id="btnPaste" class="btn btn-icon-paste" title="Tempel dari Clipboard">
+                        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2">
+                            <rect x="8" y="2" width="8" height="4" rx="1" ry="1"/>
+                            <path d="M16 4h2a2 2 0 012 2v14a2 2 0 01-2 2H6a2 2 0 01-2-2V6a2 2 0 012-2h2"/>
+                        </svg>
+                        <span>Tempel</span>
+                    </button>
+
+                    <button id="btnFetch" class="btn btn-primary">
+                        <span class="btn-spinner" id="fetchSpinner"></span>
+                        <span class="btn-text">Cari Video</span>
+                        <svg class="btn-arrow" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M5 12h14M12 5l7 7-7 7"/>
+                        </svg>
+                    </button>
+                </div>
+                <div id="urlErrorMsg" class="error-banner hidden"></div>
+            </div>
+        </section>
+
+        <!-- Video Details & Options Card (Dynamically displayed) -->
+        <section id="videoCard" class="video-card glass-panel hidden">
+            <div class="video-grid">
+                <!-- Thumbnail & Meta Column -->
+                <div class="video-preview-col">
+                    <div class="thumbnail-wrapper">
+                        <img id="videoThumb" src="" alt="Video Thumbnail" class="video-thumbnail">
+                        <span id="videoDuration" class="duration-badge">00:00</span>
+                    </div>
+                    <div class="video-meta">
+                        <h2 id="videoTitle" class="video-title">Judul Video YouTube</h2>
+                        <div class="meta-row">
+                            <span class="channel-name" id="videoChannel">
+                                <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor"><path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/></svg>
+                                <span id="channelText">Nama Channel</span>
+                            </span>
+                            <span class="meta-sep">•</span>
+                            <span class="view-count" id="videoViews">0 views</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Format Selection Column -->
+                <div class="format-selection-col">
+                    <div class="format-header">
+                        <h3 class="section-title">Pilih Kualitas Unduhan</h3>
+                        <div class="format-tabs">
+                            <button class="tab-btn active" id="tabVideo" data-type="video">
+                                <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="2" width="20" height="20" rx="2.18" ry="2.18"/><line x1="7" y1="2" x2="7" y2="22"/><line x1="17" y1="2" x2="17" y2="22"/><line x1="2" y1="12" x2="22" y2="12"/><line x1="2" y1="7" x2="7" y2="7"/><line x1="2" y1="17" x2="7" y2="17"/><line x1="17" y1="17" x2="22" y2="17"/><line x1="17" y1="7" x2="22" y2="7"/></svg>
+                                <span>Video (MP4 + Audio)</span>
+                            </button>
+                            <button class="tab-btn" id="tabAudio" data-type="audio">
+                                <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>
+                                <span>Audio Saja (MP3/M4A)</span>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- TV Compatibility Mode Switch Banner -->
+                    <div class="tv-mode-banner" id="tvModeBanner">
+                        <div class="tv-mode-left">
+                            <div class="tv-icon-box">
+                                <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2">
+                                    <rect x="2" y="7" width="20" height="15" rx="2" ry="2"/>
+                                    <polyline points="17 2 12 7 7 2"/>
+                                </svg>
+                            </div>
+                            <div class="tv-mode-info">
+                                <div class="tv-mode-title">
+                                    <span>Mode Kompatibel TV (H.264 + AAC)</span>
+                                    <span class="tv-tag">Direkomendasikan</span>
+                                </div>
+                                <div class="tv-mode-desc">
+                                    Format universal H.264 (AVC) + Audio AAC Stereo. Dijamin 100% bisa diputar di Smart TV, Android TV, USB flashdisk, dan mobil tanpa layar hitam atau bisu.
+                                </div>
+                            </div>
+                        </div>
+                        <label class="switch" title="Aktifkan untuk kompatibilitas TV universal">
+                            <input type="checkbox" id="toggleTvMode" checked>
+                            <span class="slider round"></span>
+                        </label>
+                    </div>
+
+                    <!-- Video Options Grid -->
+                    <div id="videoOptionsGrid" class="options-grid">
+                        <!-- Populated by JS -->
+                    </div>
+
+                    <!-- Audio Options Grid -->
+                    <div id="audioOptionsGrid" class="options-grid hidden">
+                        <!-- Populated by JS -->
+                    </div>
+
+                    <!-- Download Trigger Action -->
+                    <div class="action-footer">
+                        <div class="selected-summary" id="selectedSummary">
+                            <span class="summary-label">Format terpilih:</span>
+                            <span class="summary-value" id="selectedFormatText">1080p Full HD (MP4 + Audio H.264/AAC)</span>
+                        </div>
+                        <button id="btnStartDownload" class="btn btn-download-start">
+                            <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3"/>
+                            </svg>
+                            <span>Download Sekarang</span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Active Download & Conversion Progress Card -->
+        <section id="progressCard" class="progress-card glass-panel hidden">
+            <div class="progress-header">
+                <div class="progress-info">
+                    <span class="progress-status-pill" id="progressStatusPill">Mengunduh</span>
+                    <h3 class="progress-video-title" id="progressTitle">Sedang memproses video...</h3>
+                </div>
+                <div class="progress-percentage-display" id="progressPercentDisplay">0%</div>
+            </div>
+
+            <!-- Progress Bar -->
+            <div class="progress-track">
+                <div class="progress-fill" id="progressBarFill" style="width: 0%;"></div>
+            </div>
+
+            <!-- Live Stats Row -->
+            <div class="stats-row">
+                <div class="stat-item">
+                    <span class="stat-label">Kecepatan</span>
+                    <span class="stat-val" id="statSpeed">-- KB/s</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-label">Ukuran Data</span>
+                    <span class="stat-val" id="statSize">0 MB / 0 MB</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-label">Sisa Waktu</span>
+                    <span class="stat-val" id="statEta">--:--</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-label">Status Proses</span>
+                    <span class="stat-val highlight" id="statPhase">Inisialisasi...</span>
+                </div>
+            </div>
+
+            <!-- Success Actions (Shown when finished) -->
+            <div id="progressSuccessActions" class="success-actions hidden">
+                <div class="success-message">
+                    <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="#22c55e" stroke-width="2.5">
+                        <path d="M22 11.08V12a10 10 0 11-5.93-9.14M22 4L12 14.01l-3-3"/>
+                    </svg>
+                    <span id="successMessageText">Unduhan selesai! Video H.264 dan Audio AAC termuxing rapi siap diputar di TV.</span>
+                </div>
+                <div class="success-buttons">
+                    <a id="btnBrowserDownload" href="#" download class="btn btn-success">
+                        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3"/>
+                        </svg>
+                        <span>Simpan ke Browser</span>
+                    </a>
+                    <button id="btnPlayPreview" class="btn btn-outline">
+                        <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor">
+                            <polygon points="5 3 19 12 5 21 5 3"/>
+                        </svg>
+                        <span>Putar Video Langsung</span>
+                    </button>
+                    <button id="btnOpenFolderCard" class="btn btn-outline">
+                        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z"/>
+                        </svg>
+                        <span>Buka Folder Lokal</span>
+                    </button>
+                </div>
+            </div>
+        </section>
+
+        <!-- Download History Section -->
+        <section class="history-section">
+            <div class="history-header">
+                <div>
+                    <h3 class="history-title">Riwayat File & Status Kompatibilitas TV</h3>
+                    <p class="history-subtitle">File tersimpan di folder <code>downloads/</code> aplikasi ini</p>
+                </div>
+                <div class="history-controls">
+                    <button id="btnRefreshHistory" class="btn btn-sm btn-outline" title="Segarkan daftar file">
+                        <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M23 4v6h-6M1 20v-6h6M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15"/>
+                        </svg>
+                        <span>Segarkan</span>
+                    </button>
+                    <button id="btnOpenFolderHistory" class="btn btn-sm btn-outline">
+                        <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z"/>
+                        </svg>
+                        <span>Buka Folder</span>
+                    </button>
+                </div>
+            </div>
+
+            <div id="historyList" class="history-list">
+                <!-- Populated by JS -->
+                <div class="empty-history" id="emptyHistory">
+                    <svg viewBox="0 0 24 24" width="40" height="40" fill="none" stroke="currentColor" stroke-width="1.5">
+                        <path d="M12 2v20M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/>
+                    </svg>
+                    <span>Belum ada file di folder unduhan. Masukkan link YouTube di atas untuk memulai!</span>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <!-- Media Player Modal -->
+    <div id="playerModal" class="modal-backdrop hidden">
+        <div class="modal-card glass-panel">
+            <div class="modal-header">
+                <h4 id="modalTitle" class="modal-title">Putar Media</h4>
+                <button id="btnModalClose" class="modal-close" title="Tutup">
+                    <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2">
+                        <line x1="18" y1="6" x2="6" y2="18"/>
+                        <line x1="6" y1="6" x2="18" y2="18"/>
+                    </svg>
+                </button>
+            </div>
+            <div class="modal-body">
+                <video id="modalVideoPlayer" controls class="media-player hidden"></video>
+                <audio id="modalAudioPlayer" controls class="media-player hidden"></audio>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast Container -->
+    <div id="toastContainer" class="toast-container"></div>
+
+    <script src="/static/js/app.js"></script>
+</body>
+</html>

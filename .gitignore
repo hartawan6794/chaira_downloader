@@ -1,0 +1,60 @@
+# ==============================================================================
+# Git Ignore - YouTube Downloader Pro
+# ==============================================================================
+
+# Python bytecode & cache
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.pytest_cache/
+
+# Virtual Environments
+.venv/
+venv/
+ENV/
+env/
+.env.local
+.venv*/
+
+# Downloads & Media Files (Penyimpanan hasil unduhan)
+downloads/*
+!downloads/.gitkeep
+*.mp4
+*.webm
+*.mkv
+*.mp3
+*.m4a
+*.part
+*.ytdl
+*.aria2
+
+# yt-dlp sensitive / session cookies
+cookies.txt
+*.cookie
+*.cookies
+
+# Environment variables & secrets
+.env
+.env.*
+
+# Logs
+*.log
+logs/
+
+# IDE & Editor files
+.vscode/
+.idea/
+*.sublime-project
+*.sublime-workspace
+*.swp
+*.swo
+
+# OS specific files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
